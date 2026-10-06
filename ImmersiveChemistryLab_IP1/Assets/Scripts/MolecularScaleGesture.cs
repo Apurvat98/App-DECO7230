@@ -64,12 +64,11 @@ public class MolecularScaleGesture : MonoBehaviour
 
         if (molecularWorld != null)
         {
-            // Show molecular world
             molecularWorld.gameObject.SetActive(true);
 
-            // Keep the stability fix that stopped atoms flying away
+            // Keep molecular world stable relative to XR rig
             molecularWorld.SetParent(xrOrigin);
-            molecularWorld.localPosition = Vector3.zero;
+            molecularWorld.localPosition = new Vector3(0f, 0f, 2f);
             molecularWorld.localRotation = Quaternion.identity;
         }
 

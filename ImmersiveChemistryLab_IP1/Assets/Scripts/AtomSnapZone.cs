@@ -5,6 +5,8 @@ public class AtomSnapZone : MonoBehaviour
     public Transform snapPoint;
     public GameObject bondVisual;
 
+    public MoleculeAssemblyManager assemblyManager;
+
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Hydrogen"))
@@ -14,14 +16,14 @@ public class AtomSnapZone : MonoBehaviour
 
         if (rb != null)
         {
-            
             rb.isKinematic = true;
         }
 
         other.transform.position = snapPoint.position;
         other.transform.rotation = snapPoint.rotation;
 
-        SimpleAtomGrab grab = other.GetComponent<SimpleAtomGrab>();
+        SimpleAtomGrab grab =
+            other.GetComponent<SimpleAtomGrab>();
 
         if (grab != null)
         {
@@ -33,6 +35,13 @@ public class AtomSnapZone : MonoBehaviour
             bondVisual.SetActive(true);
         }
 
-        Debug.Log("Hydrogen snapped into bond position!");
+        if (assemblyManager != null)
+        {
+            assemblyManager.RefreshFeedback();
+        }
+
+        Debug.Log(
+            "Hydrogen snapped into bond position!"
+        );
     }
 }
