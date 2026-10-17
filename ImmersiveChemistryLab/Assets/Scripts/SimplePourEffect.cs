@@ -4,20 +4,30 @@ public class SimplePourEffect : MonoBehaviour
 {
     public Transform beaker;
     public ParticleSystem pourParticles;
+    public ReactionController reactionController;
 
     public float tiltRequired = 45f;
     public float maxPourDistance = 1.0f;
 
-    private bool pouring = false;
+    // How long the bottle contains liquid.
+    public float pourDuration = 1.5f;
+
+    private bool isPouring = false;
+    private bool bottleEmpty = false;
+
+    private float pouredTime = 0f;
 
     void Start()
     {
         if (pourParticles != null)
         {
+            // Make absolutely sure nothing is playing at the start.
             pourParticles.Stop(
                 true,
                 ParticleSystemStopBehavior.StopEmittingAndClear
             );
+
+            pourParticles.Clear(true);
         }
     }
 
@@ -26,26 +36,120 @@ public class SimplePourEffect : MonoBehaviour
         if (beaker == null || pourParticles == null)
             return;
 
+        // Once empty, this bottle can never pour again.
+        if (bottleEmpty)
+        {
+            if (pourParticles.isPlaying)
+            {
+                pourParticles.Stop(
+                    true,
+                    ParticleSystemStopBehavior.StopEmittingAndClear
+                );
+
+                pourParticles.Clear(true);
+            }
+
+            return;
+        }
+
         float tiltAngle =
-            Vector3.Angle(transform.up, Vector3.up);
+            Vector3.Angle(
+                transform.up,
+                Vector3.up
+            );
 
         float distanceToBeaker =
-            Vector3.Distance(transform.position, beaker.position);
+            Vector3.Distance(
+                transform.position,
+                beaker.position
+            );
 
-        bool shouldPour =
-    distanceToBeaker <= maxPourDistance;
+        bool tiltedEnough =
+            tiltAngle >= tiltRequired;
 
-        if (shouldPour && !pouring)
+        bool closeEnough =
+            distanceToBeaker <= maxPourDistance;
+
+        bool canPour =
+            tiltedEnough && closeEnough;
+
+        // -----------------------------------------
+        // POUR
+        // -----------------------------------------
+
+        if (canPour)
         {
-            pouring = true;
-            pourParticles.Play();
+            if (!isPouring)
+            {
+                StartPouring();
+            }
+
+            pouredTime += Time.deltaTime;
+
+            Debug.Log(
+                name +
+                " POUR TIME: " +
+                pouredTime.ToString("F2")
+            );
+
+            if (pouredTime >= pourDuration)
+            {
+                EmptyBottle();
+            }
         }
-        else if (!shouldPour && pouring)
+
+        // -----------------------------------------
+        // PAUSE IF BOTTLE IS PUT UPRIGHT / MOVED AWAY
+        // -----------------------------------------
+
+        else if (isPouring)
         {
-            pouring = false;
-            pourParticles.Stop(
-                true,
-                ParticleSystemStopBehavior.StopEmitting
+            PausePouring();
+        }
+    }
+
+    private void StartPouring()
+    {
+        isPouring = true;
+
+        pourParticles.Play(true);
+
+        Debug.Log(name + " STARTED POURING");
+    }
+
+    private void PausePouring()
+    {
+        isPouring = false;
+
+        pourParticles.Stop(
+            true,
+            ParticleSystemStopBehavior.StopEmittingAndClear
+        );
+
+        pourParticles.Clear(true);
+
+        Debug.Log(name + " PAUSED POURING");
+    }
+
+    private void EmptyBottle()
+    {
+        bottleEmpty = true;
+        isPouring = false;
+
+        // HARD STOP.
+        pourParticles.Stop(
+            true,
+            ParticleSystemStopBehavior.StopEmittingAndClear
+        );
+
+        pourParticles.Clear(true);
+
+        Debug.Log(name + " BOTTLE EMPTY");
+
+        if (reactionController != null)
+        {
+            reactionController.RegisterReactant(
+                gameObject.tag
             );
         }
     }

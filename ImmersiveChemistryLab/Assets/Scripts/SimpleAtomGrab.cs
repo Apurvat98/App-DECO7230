@@ -21,6 +21,22 @@ public class SimpleAtomGrab : MonoBehaviour
     // Only one object can be grabbed at a time
     private static SimpleAtomGrab currentlyGrabbedObject;
 
+    // Previous Quest grip states.
+    // These let us detect the exact frame a grip is pressed/released.
+    private bool previousLeftGrip = false;
+    private bool previousRightGrip = false;
+
+    // Records what input originally started the grab.
+    private enum GrabSource
+    {
+        None,
+        Keyboard,
+        LeftController,
+        RightController
+    }
+
+    private GrabSource grabSource = GrabSource.None;
+
     public bool IsGrabbed
     {
         get { return grabbed; }
@@ -43,22 +59,96 @@ public class SimpleAtomGrab : MonoBehaviour
 
     void Update()
     {
+        // Do nothing if controller transforms have not been assigned.
         if (leftController == null || rightController == null)
             return;
 
+        // ----------------------------------------------------
+        // DISTANCE CHECK
+        // ----------------------------------------------------
+
         float leftDistance =
-            Vector3.Distance(transform.position, leftController.position);
+            Vector3.Distance(
+                transform.position,
+                leftController.position
+            );
 
         float rightDistance =
-            Vector3.Distance(transform.position, rightController.position);
+            Vector3.Distance(
+                transform.position,
+                rightController.position
+            );
 
-        bool leftInRange = leftDistance <= grabDistance;
-        bool rightInRange = rightDistance <= grabDistance;
+        bool leftInRange =
+            leftDistance <= grabDistance;
 
-        bool anyControllerInRange = leftInRange || rightInRange;
+        bool rightInRange =
+            rightDistance <= grabDistance;
 
-        // Highlight when the object can be grabbed,
-        // and keep it highlighted while it is being held.
+        bool anyControllerInRange =
+            leftInRange || rightInRange;
+
+        // ----------------------------------------------------
+        // QUEST CONTROLLER INPUT
+        // ----------------------------------------------------
+
+        UnityEngine.XR.InputDevice leftDevice =
+            UnityEngine.XR.InputDevices.GetDeviceAtXRNode(
+                UnityEngine.XR.XRNode.LeftHand
+            );
+
+        UnityEngine.XR.InputDevice rightDevice =
+            UnityEngine.XR.InputDevices.GetDeviceAtXRNode(
+                UnityEngine.XR.XRNode.RightHand
+            );
+
+        bool leftGrip = false;
+        bool rightGrip = false;
+
+        if (leftDevice.isValid)
+        {
+            leftDevice.TryGetFeatureValue(
+                UnityEngine.XR.CommonUsages.gripButton,
+                out leftGrip
+            );
+        }
+
+        if (rightDevice.isValid)
+        {
+            rightDevice.TryGetFeatureValue(
+                UnityEngine.XR.CommonUsages.gripButton,
+                out rightGrip
+            );
+        }
+
+        bool leftGripPressed =
+            leftGrip && !previousLeftGrip;
+
+        bool rightGripPressed =
+            rightGrip && !previousRightGrip;
+
+        bool leftGripReleased =
+            !leftGrip && previousLeftGrip;
+
+        bool rightGripReleased =
+            !rightGrip && previousRightGrip;
+
+        // ----------------------------------------------------
+        // KEYBOARD INPUT FOR UNITY SIMULATOR
+        // ----------------------------------------------------
+
+        bool keyboardGrabPressed =
+            Keyboard.current != null &&
+            Keyboard.current.gKey.wasPressedThisFrame;
+
+        bool keyboardGrabReleased =
+            Keyboard.current != null &&
+            Keyboard.current.gKey.wasReleasedThisFrame;
+
+        // ----------------------------------------------------
+        // HIGHLIGHT
+        // ----------------------------------------------------
+
         if (anyControllerInRange || grabbed)
         {
             SetHighlight(true);
@@ -68,68 +158,148 @@ public class SimpleAtomGrab : MonoBehaviour
             SetHighlight(false);
         }
 
-        // Start grab
-        if (Keyboard.current.gKey.wasPressedThisFrame &&
-            !grabbed &&
-            currentlyGrabbedObject == null)
+        // ----------------------------------------------------
+        // START GRAB
+        // ----------------------------------------------------
+
+        if (!grabbed && currentlyGrabbedObject == null)
         {
-            if (anyControllerInRange)
+            // Physical Quest LEFT grip
+            if (leftGripPressed && leftInRange)
             {
+                BeginGrab(
+                    leftController,
+                    GrabSource.LeftController
+                );
+            }
+
+            // Physical Quest RIGHT grip
+            else if (rightGripPressed && rightInRange)
+            {
+                BeginGrab(
+                    rightController,
+                    GrabSource.RightController
+                );
+            }
+
+            // Unity Editor / XR Simulator keyboard G
+            else if (
+                keyboardGrabPressed &&
+                anyControllerInRange
+            )
+            {
+                Transform chosenController;
+
                 if (leftInRange && rightInRange)
                 {
-                    activeController =
+                    chosenController =
                         leftDistance <= rightDistance
                         ? leftController
                         : rightController;
                 }
                 else if (leftInRange)
                 {
-                    activeController = leftController;
+                    chosenController = leftController;
                 }
                 else
                 {
-                    activeController = rightController;
+                    chosenController = rightController;
                 }
 
-                grabbed = true;
-                currentlyGrabbedObject = this;
-
-                grabOffset =
-                    transform.position - activeController.position;
-
-                Debug.Log(name + " GRABBED");
+                BeginGrab(
+                    chosenController,
+                    GrabSource.Keyboard
+                );
             }
         }
 
-        // Release grab
-        if (Keyboard.current.gKey.wasReleasedThisFrame && grabbed)
-        {
-            StopGrab();
+        // ----------------------------------------------------
+        // RELEASE GRAB
+        // ----------------------------------------------------
 
-            Debug.Log(name + " RELEASED");
+        if (grabbed)
+        {
+            if (
+                grabSource == GrabSource.Keyboard &&
+                keyboardGrabReleased
+            )
+            {
+                StopGrab();
+                Debug.Log(name + " RELEASED");
+            }
+            else if (
+                grabSource == GrabSource.LeftController &&
+                leftGripReleased
+            )
+            {
+                StopGrab();
+                Debug.Log(name + " RELEASED");
+            }
+            else if (
+                grabSource == GrabSource.RightController &&
+                rightGripReleased
+            )
+            {
+                StopGrab();
+                Debug.Log(name + " RELEASED");
+            }
         }
 
-        // Follow selected controller
+        // ----------------------------------------------------
+        // FOLLOW ACTIVE CONTROLLER
+        // ----------------------------------------------------
+
         if (grabbed && activeController != null)
         {
             transform.position =
                 activeController.position + grabOffset;
         }
+
+        // Store current grip states for the next frame.
+        previousLeftGrip = leftGrip;
+        previousRightGrip = rightGrip;
+    }
+
+    private void BeginGrab(
+        Transform controller,
+        GrabSource source
+    )
+    {
+        activeController = controller;
+
+        grabbed = true;
+        currentlyGrabbedObject = this;
+
+        grabSource = source;
+
+        grabOffset =
+            transform.position -
+            activeController.position;
+
+        Debug.Log(
+            name + " GRABBED using " + source
+        );
     }
 
     private void SetHighlight(bool shouldHighlight)
     {
-        if (objectRenderer == null || highlightMaterial == null)
+        if (
+            objectRenderer == null ||
+            highlightMaterial == null
+        )
             return;
 
         objectRenderer.material =
-            shouldHighlight ? highlightMaterial : originalMaterial;
+            shouldHighlight
+            ? highlightMaterial
+            : originalMaterial;
     }
 
     public void StopGrab()
     {
         grabbed = false;
         activeController = null;
+        grabSource = GrabSource.None;
 
         if (currentlyGrabbedObject == this)
         {

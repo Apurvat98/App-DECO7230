@@ -10,63 +10,93 @@ public class ReactionController : MonoBehaviour
 
     public Renderer reactionBeakerRenderer;
     public Material reactionActiveMaterial;
+
     public GameObject molecularFocus;
 
-    private void OnTriggerEnter(Collider other)
+    // Called by SimplePourEffect after the user
+    // physically tilts and pours a reactant.
+    public void RegisterReactant(string reactantTag)
     {
-        if (other.CompareTag("ReactantA"))
+        if (reactionStarted)
+            return;
+
+        if (reactantTag == "ReactantA")
         {
             hasReactantA = true;
-            Debug.Log("Reactant A detected!");
+
+            Debug.Log(
+                "Reactant A poured into beaker!"
+            );
         }
 
-        if (other.CompareTag("ReactantB"))
+        if (reactantTag == "ReactantB")
         {
             hasReactantB = true;
-            Debug.Log("Reactant B detected!");
+
+            Debug.Log(
+                "Reactant B poured into beaker!"
+            );
         }
 
-        if (hasReactantA && hasReactantB && !reactionStarted)
+        if (hasReactantA &&
+            hasReactantB &&
+            !reactionStarted)
         {
             StartReaction();
         }
     }
 
     private void StartReaction()
-{
-    reactionStarted = true;
-
-    Debug.Log("REACTION STARTED!");
-
-    if (reactionEffect != null)
     {
-        reactionEffect.SetActive(true);
+        reactionStarted = true;
 
-        ParticleSystem particles =
-            reactionEffect.GetComponent<ParticleSystem>();
+        Debug.Log("REACTION STARTED!");
 
-        if (particles != null)
+        // ----------------------------------------
+        // REACTION PARTICLES
+        // ----------------------------------------
+
+        if (reactionEffect != null)
         {
-            particles.Play();
+            reactionEffect.SetActive(true);
+
+            ParticleSystem particles =
+                reactionEffect.GetComponent<ParticleSystem>();
+
+            if (particles != null)
+            {
+                particles.Play();
+            }
+        }
+
+        // ----------------------------------------
+        // CHANGE BEAKER MATERIAL
+        // ----------------------------------------
+
+        if (reactionBeakerRenderer != null &&
+            reactionActiveMaterial != null)
+        {
+            reactionBeakerRenderer.material =
+                reactionActiveMaterial;
+        }
+
+        // ----------------------------------------
+        // ENABLE MOLECULAR TRANSITION
+        // ----------------------------------------
+
+        if (molecularFocus != null)
+        {
+            molecularFocus.SetActive(true);
+
+            MolecularScaleGesture scaleGesture =
+                molecularFocus.GetComponent<
+                    MolecularScaleGesture
+                >();
+
+            if (scaleGesture != null)
+            {
+                scaleGesture.BeginGesture();
+            }
         }
     }
-
-    if (reactionBeakerRenderer != null && reactionActiveMaterial != null)
-    {
-        reactionBeakerRenderer.material = reactionActiveMaterial;
-    }
-
-    if (molecularFocus != null)
-{
-    molecularFocus.SetActive(true);
-
-    MolecularScaleGesture scaleGesture =
-        molecularFocus.GetComponent<MolecularScaleGesture>();
-
-    if (scaleGesture != null)
-    {
-        scaleGesture.BeginGesture();
-    }
-}
-}
 }

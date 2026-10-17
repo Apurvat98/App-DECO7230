@@ -1,0 +1,10 @@
+# ninja log v5
+5	994	1792127184129774136	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	13ec894a956b1db3
+1	1175	1792127184306596997	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	54018f6ea8a8125e
+3	1239	1792127184373607047	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	a911708df0eb8a18
+4	1265	1792127184400318656	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	24436dbd864c0ecf
+3	1309	1792127184444342890	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	da7db5d6b90aa3c6
+5	1389	1792127184523605420	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	9b085437ca675ae9
+4	1520	1792127184654280813	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	56640fba9a16b2a9
+0	1691	1792127184814224389	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	9d41f9dcf8df5165
+1691	1771	1792127184906181029	/Users/apurvatripathi/Documents/GitHub/App-DECO7230/ImmersiveChemistryLab2VR/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/21195f30/obj/arm64-v8a/libgame.so	ae2ea3bceee685a5
