@@ -10,21 +10,24 @@ public class SimpleAtomGrab : MonoBehaviour
 
     public Material highlightMaterial;
 
-    // Turn this on for bottles so they rotate with your wrist.
+    // Bottles rotate with the controller/wrist.
     public bool followControllerRotation = true;
 
     private bool grabbed = false;
-
     private Transform activeController;
 
     private Renderer objectRenderer;
     private Material originalMaterial;
 
-    // Position and rotation offsets recorded when grabbing.
     private Vector3 localGrabOffset;
     private Quaternion rotationOffset;
 
+    // Only one SimpleAtomGrab object can be held at once.
     private static SimpleAtomGrab currentlyGrabbedObject;
+
+    // Prevent every SimpleAtomGrab instance from processing
+    // the same keyboard G press during the same frame.
+    private static int keyboardProcessedFrame = -1;
 
     private bool previousLeftGrip = false;
     private bool previousRightGrip = false;
@@ -65,7 +68,7 @@ public class SimpleAtomGrab : MonoBehaviour
             return;
 
         // ----------------------------------------------------
-        // DISTANCE CHECK
+        // DISTANCE CHECK FOR THIS OBJECT
         // ----------------------------------------------------
 
         float leftDistance =
@@ -90,7 +93,7 @@ public class SimpleAtomGrab : MonoBehaviour
             leftInRange || rightInRange;
 
         // ----------------------------------------------------
-        // QUEST CONTROLLER INPUT
+        // QUEST / XR CONTROLLER INPUT
         // ----------------------------------------------------
 
         UnityEngine.XR.InputDevice leftDevice =
@@ -160,7 +163,7 @@ public class SimpleAtomGrab : MonoBehaviour
         }
 
         // ----------------------------------------------------
-        // START GRAB
+        // REAL / SIMULATED XR GRIP
         // ----------------------------------------------------
 
         if (!grabbed && currentlyGrabbedObject == null)
@@ -179,38 +182,29 @@ public class SimpleAtomGrab : MonoBehaviour
                     GrabSource.RightController
                 );
             }
-            else if (
-                keyboardGrabPressed &&
-                anyControllerInRange
-            )
-            {
-                Transform chosenController;
-
-                if (leftInRange && rightInRange)
-                {
-                    chosenController =
-                        leftDistance <= rightDistance
-                        ? leftController
-                        : rightController;
-                }
-                else if (leftInRange)
-                {
-                    chosenController = leftController;
-                }
-                else
-                {
-                    chosenController = rightController;
-                }
-
-                BeginGrab(
-                    chosenController,
-                    GrabSource.Keyboard
-                );
-            }
         }
 
         // ----------------------------------------------------
-        // RELEASE GRAB
+        // KEYBOARD G FALLBACK
+        //
+        // IMPORTANT:
+        // Instead of every bottle independently reacting to G,
+        // search ALL SimpleAtomGrab objects and grab only the
+        // closest valid object/controller pair.
+        // ----------------------------------------------------
+
+        if (
+            keyboardGrabPressed &&
+            currentlyGrabbedObject == null &&
+            keyboardProcessedFrame != Time.frameCount
+        )
+        {
+            keyboardProcessedFrame = Time.frameCount;
+            TryKeyboardGrabClosestObject();
+        }
+
+        // ----------------------------------------------------
+        // RELEASE
         // ----------------------------------------------------
 
         if (grabbed)
@@ -239,18 +233,16 @@ public class SimpleAtomGrab : MonoBehaviour
         }
 
         // ----------------------------------------------------
-        // FOLLOW CONTROLLER
+        // FOLLOW ACTIVE CONTROLLER
         // ----------------------------------------------------
 
         if (grabbed && activeController != null)
         {
-            // Follow controller position.
             transform.position =
                 activeController.TransformPoint(
                     localGrabOffset
                 );
 
-            // Follow controller rotation.
             if (followControllerRotation)
             {
                 transform.rotation =
@@ -262,6 +254,96 @@ public class SimpleAtomGrab : MonoBehaviour
         previousLeftGrip = leftGrip;
         previousRightGrip = rightGrip;
     }
+
+    // --------------------------------------------------------
+    // GLOBAL KEYBOARD GRAB SELECTION
+    // --------------------------------------------------------
+
+    private static void TryKeyboardGrabClosestObject()
+    {
+        SimpleAtomGrab[] allGrabbableObjects =
+            FindObjectsByType<SimpleAtomGrab>(
+                FindObjectsSortMode.None
+            );
+
+        SimpleAtomGrab bestObject = null;
+        Transform bestController = null;
+
+        float bestDistance = Mathf.Infinity;
+
+        foreach (SimpleAtomGrab candidate in allGrabbableObjects)
+        {
+            if (
+                candidate == null ||
+                !candidate.isActiveAndEnabled ||
+                candidate.leftController == null ||
+                candidate.rightController == null
+            )
+            {
+                continue;
+            }
+
+            float leftDistance =
+                Vector3.Distance(
+                    candidate.transform.position,
+                    candidate.leftController.position
+                );
+
+            if (
+                leftDistance <= candidate.grabDistance &&
+                leftDistance < bestDistance
+            )
+            {
+                bestDistance = leftDistance;
+                bestObject = candidate;
+                bestController = candidate.leftController;
+            }
+
+            float rightDistance =
+                Vector3.Distance(
+                    candidate.transform.position,
+                    candidate.rightController.position
+                );
+
+            if (
+                rightDistance <= candidate.grabDistance &&
+                rightDistance < bestDistance
+            )
+            {
+                bestDistance = rightDistance;
+                bestObject = candidate;
+                bestController = candidate.rightController;
+            }
+        }
+
+        if (
+            bestObject != null &&
+            bestController != null
+        )
+        {
+            bestObject.BeginGrab(
+                bestController,
+                GrabSource.Keyboard
+            );
+
+            Debug.Log(
+                "Keyboard G selected " +
+                bestObject.name +
+                " at distance " +
+                bestDistance.ToString("F3")
+            );
+        }
+        else
+        {
+            Debug.Log(
+                "Keyboard G: no grabbable object is close enough."
+            );
+        }
+    }
+
+    // --------------------------------------------------------
+    // BEGIN GRAB
+    // --------------------------------------------------------
 
     private void BeginGrab(
         Transform controller,
@@ -275,13 +357,11 @@ public class SimpleAtomGrab : MonoBehaviour
 
         grabSource = source;
 
-        // Store object's position relative to controller.
         localGrabOffset =
             activeController.InverseTransformPoint(
                 transform.position
             );
 
-        // Store object's rotation relative to controller.
         rotationOffset =
             Quaternion.Inverse(
                 activeController.rotation
@@ -292,19 +372,29 @@ public class SimpleAtomGrab : MonoBehaviour
         );
     }
 
+    // --------------------------------------------------------
+    // HIGHLIGHT
+    // --------------------------------------------------------
+
     private void SetHighlight(bool shouldHighlight)
     {
         if (
             objectRenderer == null ||
             highlightMaterial == null
         )
+        {
             return;
+        }
 
         objectRenderer.material =
             shouldHighlight
             ? highlightMaterial
             : originalMaterial;
     }
+
+    // --------------------------------------------------------
+    // RELEASE
+    // --------------------------------------------------------
 
     public void StopGrab()
     {
