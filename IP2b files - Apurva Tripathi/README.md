@@ -2,7 +2,7 @@
 
 **A virtual-reality chemistry experience built with Unity for Meta Quest.**
 
-Immersive Chemistry Lab is an interactive XR prototype developed for **DECO7230 – Digital Prototyping and Extended Reality**, Semester 2, 2026, at The University of Queensland. It combines hands-on laboratory activities with a transition into a molecular-scale environment, where users can construct and manipulate a simple water molecule.
+Immersive Chemistry Lab is an interactive XR prototype developed for **DECO7230 - Digital Prototyping and Extended Reality**, Semester 2, 2026, at The University of Queensland. It combines hands-on laboratory activities with a transition into a molecular-scale environment, where users can construct and manipulate a simple water molecule.
 
 The prototype uses an alchemy-inspired laboratory setting. Its main design goal is to explore whether spatial instructions, controller-based interactions, and visual feedback make the activities understandable and comfortable to use. It is a **prototype**, not a validated chemistry-teaching tool.
 
@@ -19,7 +19,7 @@ The laboratory includes instructional boards, station guidance, and visual feedb
 
 ## Main VR controls
 
-| Action | Control or gesture |
+| Action | Controls or gesture |
 | --- | --- |
 | Navigate around the laboratory | Controller thumbstick |
 | Grab and move an interactive object | Controller Grip |
